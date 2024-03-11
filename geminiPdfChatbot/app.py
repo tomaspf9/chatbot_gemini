@@ -1,15 +1,15 @@
 import streamlit as st
-from PyPDF2 import PdfReader #library to read pdf files
-from langchain.text_splitter import RecursiveCharacterTextSplitter#library to split pdf files
+from PyPDF2 import PdfReader #libreria para leer pdf
+from langchain.text_splitter import RecursiveCharacterTextSplitter#libreria para splitear textos de archivos pdf
 import os
 
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI #to embed the text
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI #para encrustar texto
 import google.generativeai as genai
 
-from langchain_community.vectorstores import FAISS #for vector embeddings
+from langchain_community.vectorstores import FAISS #Para los embeddings / vectores
 from langchain_google_genai import ChatGoogleGenerativeAI #
-from langchain.chains.question_answering import load_qa_chain #to chain the prompts
-from langchain.prompts import PromptTemplate #to create prompt templates
+from langchain.chains.question_answering import load_qa_chain #para encadenar prompts
+from langchain.prompts import PromptTemplate #para crear templates del prompt
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,30 +18,30 @@ genai.configure(api_key = os.getenv("GOOGLE_API_KEY"))
 
 def get_pdf_text(pdf_docs):
     text = ""
-    # iterate over all pdf files uploaded
+    # recorre todos los archivos PDF cargados
     for pdf in pdf_docs:
         pdf_reader = PdfReader(pdf)
-        # iterate over all pages in a pdf
+        # recorre todas las páginas en un PDF
         for page in pdf_reader.pages:
             text += page.extract_text()
     return text
 
 def get_text_chunks(text):
-    # create an object of RecursiveCharacterTextSplitter with specific chunk size and overlap size
+    # crear  objeto RecursiveCharacterTextSplitter con un chunk size especficio 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size = 10000, chunk_overlap = 1000)
-    # now split the text we have using object created
+    # separar el texto en chunks
     chunks = text_splitter.split_text(text)
 
     return chunks
 
 def get_vector_store(text_chunks):
     embeddings = GoogleGenerativeAIEmbeddings(model = "models/embedding-001") # google embeddings
-    vector_store = FAISS.from_texts(text_chunks,embeddings) # use the embedding object on the splitted text of pdf docs
-    vector_store.save_local("faiss_index") # save the embeddings in local
+    vector_store = FAISS.from_texts(text_chunks,embeddings) # utiliza el objeto de embedding en el texto dividido de los documentos PDF
+    vector_store.save_local("faiss_index") # guardar los embeddings en local
 
 def get_conversation_chain():
 
-    # define the prompt
+    # definir un prompt para el chatbot y darle instrucciones
     prompt_template = """
     Answer the question as detailed as possible from the provided context, make sure to provide all the details, if the answer is not in
     provided context just say, "answer is not available in the context", don't provide the wrong answer\n\n
@@ -51,7 +51,7 @@ def get_conversation_chain():
     Answer:
     """
 
-    model = ChatGoogleGenerativeAI(model = "gemini-pro", temperature = 0.3) # create object of gemini-pro
+    model = ChatGoogleGenerativeAI(model = "gemini-pro", temperature = 0.3) # crear objeto de gemini pro /
 
     prompt = PromptTemplate(template = prompt_template, input_variables= ["context","question"])
 
@@ -60,12 +60,12 @@ def get_conversation_chain():
     return chain
 
 def user_input(user_question):
-    # user_question is the input question
+    # user_question es la pregunta dentro del input
     embeddings = GoogleGenerativeAIEmbeddings(model = "models/embedding-001")
-    # load the local faiss db
+    #db cargar la db faiss en local
     new_db = FAISS.load_local("faiss_index", embeddings)
 
-    # using similarity search, get the answer based on the input
+    #usando busqueda por similitud tener la respuesta basada en el input
     docs = new_db.similarity_search(user_question)
 
     chain = get_conversation_chain()
